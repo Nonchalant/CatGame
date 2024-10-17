@@ -1,5 +1,6 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour {
@@ -11,8 +12,7 @@ public class GameManager : MonoBehaviour {
     public GameObject gameClear;
     public GameObject player;
 
-    private bool hasUnstableObject = false;
-    private float time = 0.0f;
+    private CancellationTokenSource source;
 
     void Start() {
         isGameOver = false;
@@ -24,37 +24,24 @@ public class GameManager : MonoBehaviour {
             Application.Quit();
         }
 
-        if(hasUnstableObject) {
-            time += Time.deltaTime;
-        }
-
-        if(time > 2.0f) {
-            isGameOver = true;
-        }
-
-        if(isGameOver) {
-            player.SetActive(false);
-            gameOver.SetActive(true);
-        } else {
-            player.SetActive(true);
-            gameOver.SetActive(false);
-        }
-
-        if (isGameClear) {
-            player.SetActive(false);
-            gameClear.SetActive(true);
-        } else {
-            player.SetActive(true);
-            gameClear.SetActive(false);
-        }
+        player.SetActive(!(isGameOver || isGameClear));
+        gameOver.SetActive(isGameOver);
+        gameClear.SetActive(isGameClear);
     }
 
-    void OnTriggerEnter2D(Collider2D collider) {
-        hasUnstableObject = true;
+    async void OnTriggerEnter2D(Collider2D collider) {
+        source = new CancellationTokenSource();
+        CancellationToken token = source.Token;
+
+        try {
+            await UniTask.Delay(TimeSpan.FromSeconds(2), cancellationToken: token);
+            isGameOver = true;
+        } catch (OperationCanceledException) {
+            Debug.Log("Continue");
+        }
     }
 
     void OnTriggerExit2D(Collider2D collider) {
-        hasUnstableObject = false;
-        time = 0.0f;
+        source.Cancel();
     }
 }
